@@ -1,5 +1,6 @@
 from core.logic import TriState, evaluate
-from core.parser import parse_expr, visualize_ast
+from core.parser import parse_expr
+from core.visualizer import visualize_ast
 
 if __name__ == "__main__":
     expr = parse_expr("(A | B) & (C & (D | E))")
@@ -11,6 +12,10 @@ if __name__ == "__main__":
         "D": TriState.UNKNOWN,
         "E": TriState.FALSE,
     }
+
+    assert evaluate(expr, context) is TriState.UNKNOWN
+
+    ##################################################
 
     context = {
         "A": TriState.UNKNOWN,
@@ -24,15 +29,15 @@ if __name__ == "__main__":
         "I": TriState.TRUE,
     }
 
-    source = "((A | (B & (C | D))) & ((E | F) & (G | (H & I))))"
+    source = "((A | (B & (C | ~D))) & ((E | F) & (G | (H & I))))"
     expr = parse_expr(source)
 
-    # Left side: FALSE | (TRUE & (FALSE | TRUE)) => TRUE
-    # Right side: (TRUE | FALSE) & (UNKNOWN | (TRUE & UNKNOWN)) => TRUE & UNKNOWN => UNKNOWN
-    # Total: TRUE & UNKNOWN => UNKNOWN
-    # assert evaluate(expr, context) is TriState.UNKNOWN
-
-    result = evaluate(expr, context)
+    print(f"Expression: {source}")
+    print ("\n", "*" * 80, "\n")
+    print("AST without context:\n")
     print(visualize_ast(expr))
+    print ("\n", "*" * 80, "\n")
+    print("AST with context:\n")
     print(visualize_ast(expr, context))
-    print(f"Result: {result}")
+    print ("\n", "*" * 80, "\n")
+    print(f"Result: {evaluate(expr, context)}")

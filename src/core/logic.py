@@ -2,6 +2,8 @@ import ast
 from collections.abc import Mapping
 from enum import Enum
 
+from core.exceptions import ASTEvaluationError
+
 Context = Mapping[str, 'TriState']
 
 
@@ -50,7 +52,7 @@ def evaluate(expr: ast.expr, context: Context) -> TriState:
             try:
                 return context[name]
             except KeyError:
-                raise ValueError(f"Variable {name!r} not found in context")
+                raise ASTEvaluationError(f"Variable {name!r} not found in context") from None
 
         # BitAnd '&' acts as TriState AND
         case ast.BinOp(left=left, op=ast.BitAnd(), right=right):
@@ -65,4 +67,4 @@ def evaluate(expr: ast.expr, context: Context) -> TriState:
             return ~evaluate(operand, context)
 
         case _:
-            raise TypeError(f"Unsupported expression: {type(expr)!r}")
+            raise ASTEvaluationError(f"Unsupported expression: {type(expr)!r}")
