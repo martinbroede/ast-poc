@@ -74,14 +74,14 @@ python src/main.py
 ```
 
 
-## Running tests
+## Run tests
 
 ```bash
 cd src
 pytest test*.py
 ```
 
-## Running tests with coverage
+## Run tests with coverage
 
 ```bash
 cd src
@@ -98,4 +98,58 @@ find . -type f -name "*.pyc" -delete
 find . -type d -name "__pycache__" -delete
 find . -type d -name "htmlcov" -exec rm -rf {} +
 find . -type f -name ".coverage" -delete
+```
+
+## Example output
+
+...using the visualizer to print a readable tree structure:
+
+```
+Expression: ((A | (B & (C | ~D))) & ((E | F) & (G | (H & I))))
+
+────────────────────────────────────────────────────────────────────────────────
+
+AST without context:
+
+            [AND]
+              │
+   ┌──────────┴───────────┐
+ [OR]                   [AND]
+   │                      │
+┌──┴───┐              ┌───┴────┐
+A    [AND]          [OR]     [OR]
+       │              │        │
+    ┌──┴───┐        ┌─┴─┐   ┌──┴──┐
+    B    [OR]       E   F   G   [AND]
+           │                      │
+        ┌──┴──┐                 ┌─┴─┐
+        C   [NOT]               H   I
+              │
+              │
+              D
+
+────────────────────────────────────────────────────────────────────────────────
+
+AST with context:
+
+                           [AND]
+                             │
+          ┌──────────────────┴──────────────────┐
+        [OR]                                  [AND]
+          │                                     │
+   ┌──────┴──────┐                     ┌────────┴─────────┐
+UNKNOWN        [AND]                 [OR]               [OR]
+                 │                     │                  │
+            ┌────┴─────┐           ┌───┴───┐        ┌─────┴──────┐
+          TRUE       [OR]        TRUE   UNKNOWN   FALSE        [AND]
+                       │                                         │
+                   ┌───┴───┐                                 ┌───┴────┐
+                 FALSE   [NOT]                            UNKNOWN   TRUE
+                           │
+                           │
+                         TRUE
+
+────────────────────────────────────────────────────────────────────────────────
+
+Result: UNKNOWN
 ```
