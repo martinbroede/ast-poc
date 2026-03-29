@@ -8,17 +8,18 @@ The `TriState` class represents three logical states:
 - `false`
 - `unknown`
 
-Relations between those states are described in more detail in 
+Relations between those states are described in detail in
 [this Wikipedia article](https://en.wikipedia.org/wiki/Three-valued_logic#Kleene_and_Priest_logics)
 
-The project parses expressions into Python built-in AST nodes and evaluates them with custom `TriState` semantics.
+The project parses expressions into Python built-in AST nodes and evaluates them with [these](src/core/logic.py)
+`TriState` semantics.
 
 ## Input syntax
 
 Supported tokens:
 
 - Variables: `A`, `my_var`, ...
-- Operators: `&`, `|`
+- Operators: `&`, `|`, `~`
 - Parentheses: `(` and `)`
 
 ## Output
