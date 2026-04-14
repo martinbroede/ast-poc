@@ -2,7 +2,6 @@ from datetime import datetime
 from random import Random
 from typing import Generator, TypedDict
 
-__TIME_RANGE_SECONDS = 3600
 """
 How far back in time to generate events.
 Setting to 1 hour will generate events with timestamps within the last hour, starting from the last full hour.
@@ -24,7 +23,11 @@ class EventDTO(TypedDict):
     timestamp: str
 
 
-def generate_random_events(num_events: int) -> Generator[EventDTO]:
+def generate_random_events(num_events: int, time_range: int = 3600) -> Generator[EventDTO]:
+    """
+    Generates random events with timestamps within the specified time range.
+    The latest possible timestamp is the last full hour, the earliest possible timestamp is (last full hour - time_range).
+    """
     last_full_hour = int(datetime.now().timestamp() // 3600 * 3600)
     for _ in range(num_events):
         yield EventDTO(
@@ -32,7 +35,7 @@ def generate_random_events(num_events: int) -> Generator[EventDTO]:
             host=__rnd.choice(__hosts),
             code=__rnd.choice(__events),
             role=__rnd.choice(__role),
-            timestamp=datetime.fromtimestamp(last_full_hour - __rnd.randint(0, __TIME_RANGE_SECONDS)).isoformat()
+            timestamp=datetime.fromtimestamp(last_full_hour - __rnd.randint(0, time_range)).isoformat()
         )
 
 

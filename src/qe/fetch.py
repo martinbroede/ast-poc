@@ -5,7 +5,7 @@ def fetch_events_from_opensearch(
         client: OpenSearch,
         index_name: str = "events",
         constraints: dict | None = None,
-        size: int = 100) -> list[dict]:
+        size: int = 10000) -> list[dict]:
     """
     Fetch events from OpenSearch index with optional query constraints.
 
@@ -21,7 +21,6 @@ def fetch_events_from_opensearch(
     if constraints is None:
         constraints = {}
 
-    # Build must clauses for each constraint
     must_clauses = [
         {"match": {key: value}} for key, value in constraints.items()
     ]
@@ -45,3 +44,7 @@ def fetch_events_from_opensearch(
 
 if __name__ == "__main__":
     client = OpenSearch(hosts=[{"host": "localhost", "port": 9200}])
+    events = fetch_events_from_opensearch(client)
+    print(f"Fetched {len(events)} events:" if events else "No events found.")
+    events_with_alice = fetch_events_from_opensearch(client, constraints={"user": "Alice"})
+    print(f"Fetched {len(events_with_alice)} events for user Alice:" if events_with_alice else "No events found for user Alice.")

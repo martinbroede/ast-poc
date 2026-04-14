@@ -85,9 +85,9 @@ pytest test*.py
 
 ```bash
 cd src
-python -m pytest -q --cov=core test*.py
+python -m pytest -q --cov=core --cov=ce test*.py
 # To generate an HTML report:
-python -m pytest -q --cov=core --cov-report=html test*.py
+python -m pytest -q --cov=core --cov=ce --cov-report=html test*.py
 ```
 
 ## Cleaning up generated files
