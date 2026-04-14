@@ -3,6 +3,7 @@ certifi==2026.2.25
 charset-normalizer==3.4.7
 coverage==7.13.5
 Events==0.5
+Faker==40.13.0
 grpcio==1.80.0
 idna==3.11
 iniconfig==2.3.0
