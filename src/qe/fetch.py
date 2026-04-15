@@ -1,10 +1,16 @@
+import logging
+
 from opensearchpy import OpenSearch
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_events_from_opensearch(
         client: OpenSearch,
         index_name: str = "events",
         constraints: dict | None = None,
+        from_timestamp: str | None = None,
+        to_timestamp: str | None = None,
         size: int = 10000) -> list[dict]:
     """
     Fetch events from OpenSearch index with optional query constraints.
@@ -25,11 +31,22 @@ def fetch_events_from_opensearch(
         {"match": {key: value}} for key, value in constraints.items()
     ]
 
+    if from_timestamp or to_timestamp:
+        range_query = {}
+        if from_timestamp:
+            range_query["gte"] = from_timestamp
+        if to_timestamp:
+            range_query["lte"] = to_timestamp
+        must_clauses.append({"range": {"timestamp": range_query}})
+
     query = {
         "bool": {
             "must": must_clauses
         }
     } if must_clauses else {"match_all": {}}
+
+    # log the query for debugging purposes:
+    logger.debug(f"Fetching events from OpenSearch with query: {query} and size: {size}")
 
     response = client.search(
         index=index_name,
