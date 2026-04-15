@@ -42,12 +42,14 @@ def _build_rule() -> DetectionRule:
         name="sample",
         steps=[
             StepDefinition(
+                max_event_gap=0,
                 expression="Q1",
                 queries={
                     "Q1": QueryDefinition(name="Q1", constraints={"code": "42"}),
                 },
             ),
             StepDefinition(
+                max_event_gap=300,
                 expression="Q2 | Q3",
                 queries={
                     "Q2": QueryDefinition(name="Q2", constraints={"code": "21"}),
