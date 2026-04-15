@@ -1,3 +1,7 @@
+"""
+Convenience script to reset the OpenSearch cluster by deleting all documents and indexes
+for testing purposes.
+"""
 from opensearchpy import OpenSearch
 
 

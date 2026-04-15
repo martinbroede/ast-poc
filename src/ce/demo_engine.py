@@ -1,7 +1,7 @@
+import random
 import sys
 from pathlib import Path
 
-import random
 from opensearchpy import OpenSearch
 
 
@@ -11,6 +11,7 @@ def build_demo_rule(index_name: str) -> 'DetectionRule':
         index_name=index_name,
         steps=[
             StepDefinition(
+                max_event_gap=0,
                 expression="Q1",
                 queries={
                     "Q1": QueryDefinition(
@@ -20,6 +21,7 @@ def build_demo_rule(index_name: str) -> 'DetectionRule':
                 },
             ),
             StepDefinition(
+                max_event_gap=60*5,  # 5 minutes
                 expression="Q2 | Q3",
                 queries={
                     "Q2": QueryDefinition(
@@ -33,6 +35,7 @@ def build_demo_rule(index_name: str) -> 'DetectionRule':
                 },
             ),
             StepDefinition(
+                max_event_gap=60 * 60 * 6,  # 6 hours
                 expression="Q4",
                 queries={
                     "Q4": QueryDefinition(
@@ -42,6 +45,7 @@ def build_demo_rule(index_name: str) -> 'DetectionRule':
                 },
             ),
             StepDefinition(
+                max_event_gap=60*24,
                 expression="Q5",
                 queries={
                     "Q5": QueryDefinition(

@@ -20,6 +20,7 @@ class QueryDefinition:
 class StepDefinition:
     expression: str
     queries: dict[str, QueryDefinition]
+    max_event_gap: int
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,7 @@ class DetectionRule:
     name: str
     steps: list[StepDefinition]
     constraints: list[FieldEqualityConstraint]
-    index_name: str = "events"
+    index_name: str
     timestamp_field: str = "timestamp"
 
 

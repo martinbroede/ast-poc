@@ -4,9 +4,9 @@ from typing import Generator
 from opensearchpy import OpenSearch, helpers
 
 try:
-    from qe.demo_events import EventDTO, generate_random_events
+    from qe.demo_events import EventDTO, generate_random_events, logger as demo_events_logger
 except ModuleNotFoundError:
-    from demo_events import EventDTO, generate_random_events
+    from demo_events import EventDTO, generate_random_events, logger as demo_events_logger
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,8 @@ def push_events_to_opensearch(
 
 if __name__ == "__main__":
     client = OpenSearch(hosts=[{"host": "localhost", "port": 9200}])
-    events = generate_random_events(10_000_000, 31 * 24 * 3600)
+    events = generate_random_events(100_000_000, 3 * 30 * 24 * 3600)  # 100 million events within the last ~3 months
     logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
     logger.setLevel(logging.DEBUG)
+    demo_events_logger.setLevel(logging.DEBUG)
     push_events_to_opensearch(events, client, "events")
