@@ -12,12 +12,16 @@ from qe.fetch import fetch_events_from_opensearch
 
 @dataclass(frozen=True)
 class QueryDefinition:
+    """Defines one named event query and its filter constraints."""
+
     name: str
     constraints: dict[str, str | int | float | bool]
 
 
 @dataclass(frozen=True)
 class StepDefinition:
+    """Describes a correlation step expression and the queries it depends on."""
+
     expression: str
     queries: dict[str, QueryDefinition]
     max_event_gap: int
@@ -25,6 +29,8 @@ class StepDefinition:
 
 @dataclass(frozen=True)
 class FieldEqualityConstraint:
+    """Represents a cross-query equality check between two event fields."""
+
     left_query: str
     left_field: str
     right_query: str
@@ -33,6 +39,8 @@ class FieldEqualityConstraint:
 
 @dataclass(frozen=True)
 class DetectionRule:
+    """Bundles the full rule definition used for correlation evaluation."""
+
     name: str
     steps: list[StepDefinition]
     constraints: list[FieldEqualityConstraint]
@@ -42,6 +50,8 @@ class DetectionRule:
 
 @dataclass(frozen=True)
 class EvaluationSnapshot:
+    """Captures intermediate evaluation status after each query execution step."""
+
     state: TriState
     executed_queries: tuple[str, ...]
     candidate_count: int
@@ -49,6 +59,8 @@ class EvaluationSnapshot:
 
 @dataclass(frozen=True)
 class CorrelationResult:
+    """Final outcome of a rule evaluation including state, evidence, and trace."""
+
     state: TriState
     triggered: bool
     bindings: list[dict[str, dict]]
@@ -58,12 +70,16 @@ class CorrelationResult:
 
 @dataclass(frozen=True)
 class _EventRecord:
+    """Internal wrapper for an event payload with a deterministic unique id."""
+
     uid: str
     payload: dict
 
 
 @dataclass(frozen=True)
 class _EvalNodeResult:
+    """Internal evaluation output for an expression node and its candidate bindings."""
+
     state: TriState
     complete: bool
     bindings: tuple[dict[str, _EventRecord], ...]
@@ -80,6 +96,13 @@ class CorrelationEngine:
         execution_order: list[str] | None = None,
         stop_when_known: bool = True,
     ) -> CorrelationResult:
+        """Evaluates a detection rule incrementally as query results become available.
+
+        The method parses and validates rule expressions, fetches events in execution order,
+        re-evaluates the composed expression after each fetch, and optionally stops once the
+        tri-state outcome is deterministically known.
+        """
+
         steps_with_ast = [(step, parse_expr(step.expression)) for step in rule.steps]
         all_queries = self._collect_queries(rule)
         self._validate_steps(steps_with_ast, all_queries)
@@ -123,7 +146,7 @@ class CorrelationEngine:
                 )
             )
 
-            if stop_when_known and root.state in (TriState.TRUE, TriState.FALSE):
+            if stop_when_known and root.state != TriState.UNKNOWN:
                 break
 
         result_bindings = [
@@ -140,10 +163,14 @@ class CorrelationEngine:
         )
 
     def _fetch_events(self, client: OpenSearch, index_name: str, constraints: dict[str, str | int | float | bool]) -> list[dict]:
+        """Fetches raw events for one query using the shared OpenSearch fetch helper."""
+
         return fetch_events_from_opensearch(client, index_name, constraints)
 
     @staticmethod
     def _collect_queries(rule: DetectionRule) -> dict[str, QueryDefinition]:
+        """Collects unique query definitions from all steps and rejects conflicting duplicates."""
+
         queries: dict[str, QueryDefinition] = {}
         for step in rule.steps:
             for name, query in step.queries.items():
@@ -154,6 +181,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _build_step_map(rule: DetectionRule) -> dict[str, int]:
+        """Builds a query-to-step index map used for temporal ordering checks."""
+
         step_map: dict[str, int] = {}
         for idx, step in enumerate(rule.steps):
             for query_name in step.queries:
@@ -162,6 +191,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _materialize_events(query_name: str, events: list[dict]) -> tuple[_EventRecord, ...]:
+        """Converts raw events to internal records with stable per-query identifiers."""
+
         return tuple(
             _EventRecord(uid=f"{query_name}:{idx}", payload=event)
             for idx, event in enumerate(events)
@@ -169,6 +200,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _validate_execution_order(order: list[str], queries: dict[str, QueryDefinition]) -> None:
+        """Ensures execution order contains only known queries and no duplicates."""
+
         seen: set[str] = set()
         for query_name in order:
             if query_name not in queries:
@@ -179,6 +212,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _collect_expr_names(expr: ast.expr) -> set[str]:
+        """Extracts all query variable names referenced inside an expression AST."""
+
         names: set[str] = set()
         for node in ast.walk(expr):
             if isinstance(node, ast.Name):
@@ -186,6 +221,8 @@ class CorrelationEngine:
         return names
 
     def _validate_steps(self, steps_with_ast: list[tuple[StepDefinition, ast.expr]], all_queries: dict[str, QueryDefinition]) -> None:
+        """Validates that step expressions reference only declared queries and all step queries are used."""
+
         known = set(all_queries)
         for step, step_ast in steps_with_ast:
             expr_names = self._collect_expr_names(step_ast)
@@ -208,6 +245,8 @@ class CorrelationEngine:
         completed: dict[str, bool],
         step_map: dict[str, int],
     ) -> _EvalNodeResult:
+        """Evaluates all step expressions and combines them with logical AND semantics."""
+
         if not steps_with_ast:
             return _EvalNodeResult(state=TriState.FALSE, complete=True, bindings=tuple())
 
@@ -230,6 +269,8 @@ class CorrelationEngine:
         rule: DetectionRule,
         step_map: dict[str, int],
     ) -> _EvalNodeResult:
+        """Recursively evaluates an expression AST into tri-state truth and candidate bindings."""
+
         match expr:
             case ast.Name(id=query_name):
                 bindings = tuple({query_name: event} for event in known_events[query_name])
@@ -257,9 +298,13 @@ class CorrelationEngine:
 
     @staticmethod
     def _binding_key(binding: dict[str, _EventRecord]) -> tuple[tuple[str, str], ...]:
+        """Builds a canonical key for deduplicating equivalent bindings."""
+
         return tuple(sorted((query_name, event.uid) for query_name, event in binding.items()))
 
     def _combine_or(self, left: _EvalNodeResult, right: _EvalNodeResult) -> _EvalNodeResult:
+        """Combines two node results with OR semantics and merged binding candidates."""
+
         merged: dict[tuple[tuple[str, str], ...], dict[str, _EventRecord]] = {}
         for binding in itertools.chain(left.bindings, right.bindings):
             merged[self._binding_key(binding)] = binding
@@ -278,6 +323,8 @@ class CorrelationEngine:
         rule: DetectionRule,
         step_map: dict[str, int],
     ) -> _EvalNodeResult:
+        """Combines two node results with AND semantics via compatibility-aware joins."""
+
         joined = self._join_compatible_bindings(left.bindings, right.bindings, rule, step_map)
 
         if joined:
@@ -295,6 +342,8 @@ class CorrelationEngine:
         rule: DetectionRule,
         step_map: dict[str, int],
     ) -> tuple[dict[str, _EventRecord], ...]:
+        """Joins binding pairs and keeps only merged candidates that satisfy rule constraints."""
+
         merged: dict[tuple[tuple[str, str], ...], dict[str, _EventRecord]] = {}
         for left in left_bindings:
             for right in right_bindings:
@@ -311,6 +360,8 @@ class CorrelationEngine:
         left: dict[str, _EventRecord],
         right: dict[str, _EventRecord],
     ) -> dict[str, _EventRecord] | None:
+        """Merges two bindings unless they assign different events to the same query name."""
+
         merged = dict(left)
         for query_name, event in right.items():
             if query_name in merged and merged[query_name].uid != event.uid:
@@ -324,6 +375,8 @@ class CorrelationEngine:
         rule: DetectionRule,
         step_map: dict[str, int],
     ) -> bool:
+        """Checks whether one binding obeys value constraints and temporal step ordering."""
+
         for constraint in rule.constraints:
             state = self._evaluate_constraint(binding, constraint)
             if state is TriState.FALSE:
@@ -346,6 +399,8 @@ class CorrelationEngine:
         binding: dict[str, _EventRecord],
         constraint: FieldEqualityConstraint,
     ) -> TriState:
+        """Evaluates a field-equality constraint on a partial or complete binding."""
+
         left_event = binding.get(constraint.left_query)
         right_event = binding.get(constraint.right_query)
         if left_event is None or right_event is None:
@@ -359,6 +414,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _resolve_field(event: dict, field: str):
+        """Resolves a dotted field path inside a nested event dictionary."""
+
         current = event
         for part in field.split("."):
             if not isinstance(current, dict) or part not in current:
@@ -374,6 +431,8 @@ class CorrelationEngine:
         step_map: dict[str, int],
         timestamp_field: str,
     ) -> bool:
+        """Verifies that events from earlier steps occur before later-step events by timestamp."""
+
         step_a = step_map[query_a]
         step_b = step_map[query_b]
         if step_a == step_b:
@@ -390,6 +449,8 @@ class CorrelationEngine:
 
     @staticmethod
     def _parse_timestamp(event: dict, field: str) -> datetime | None:
+        """Parses an ISO timestamp from an event field and returns None if unavailable or invalid."""
+
         value = CorrelationEngine._resolve_field(event, field)
         if value is None or not isinstance(value, str):
             return None
